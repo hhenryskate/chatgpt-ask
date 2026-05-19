@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chatgpt-ask"
+version = "0.1.0"
+description = "Local ChatGPT web MCP using a persistent browser session"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "curl_cffi>=0.5.7",
+    "patchright>=1.0.0",
+    "playwright>=1.40.0",
+]
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0",
+]
+dev = [
+    "pytest>=7.4.0",
+]
+
+[project.scripts]
+chatgpt-mcp = "chatgpt_ask.mcp:main"
+chatgpt-driver = "chatgpt_ask.driver:main"
+
+[tool.setuptools.packages.find]
+include = ["chatgpt_ask*"]
