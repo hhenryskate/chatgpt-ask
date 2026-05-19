@@ -7,5 +7,6 @@ __pycache__/
 .driver-chrome-profile/
 .emailnator-chrome-profile/
 .inspect-*/
+.mcp.json
 
 perplexity.log

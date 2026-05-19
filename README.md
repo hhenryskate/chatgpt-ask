@@ -1,135 +1,125 @@
 # ChatGPT Ask MCP
 
-MCP local por `stdio` para consultar ChatGPT Web desde una sesión persistente de navegador.
+Local MCP server for asking ChatGPT through an authenticated ChatGPT Web browser session.
 
-Este proyecto no usa la OpenAI API, no necesita API key y no consume saldo de API. La integración abre/controla ChatGPT Web con Patchright, guarda cookies locales y expone herramientas MCP para que clientes como Codex o Claude puedan llamar a la sesión autenticada.
+This project does not use the OpenAI API and does not require an API key. It uses Patchright/Chrome automation, a persistent local browser profile, and a local cookie file to expose ChatGPT Web as MCP tools over `stdio`.
 
-## Estado Actual
+## Features
 
-- Ruta del proyecto: `D:\MCP\chatgpt-ask`
-- Entrada MCP: `D:\MCP\chatgpt-ask\.venv\Scripts\chatgpt-mcp.exe`
-- Driver CLI: `D:\MCP\chatgpt-ask\.venv\Scripts\chatgpt-driver.exe`
-- Perfil persistente de Chrome: `D:\MCP\chatgpt-ask\.driver-chrome-profile`
-- Cookies de ChatGPT: `D:\MCP\chatgpt-ask\.chatgpt-cookies.json`
-- Perfil usado para Emailnator: `D:\MCP\perplexity-ask\.driver-chrome-profile`
-- La cuenta temporal ya fue creada una vez y quedó autenticada.
-- `chatgpt_deep_research` selecciona la herramienta de ChatGPT, pero la cuenta Free actual puede devolver límite de Deep Research hasta el restablecimiento visible en ChatGPT.
+- MCP server over `stdio`.
+- Persistent local browser profile.
+- Saved ChatGPT cookies in a local file.
+- Manual login flow for an existing ChatGPT account.
+- Optional one-time account bootstrap flow using an Emailnator browser profile.
+- Separate MCP tools for normal chat, web search, reasoning, and Deep Research.
+- Serialized browser execution so one profile is not used by multiple concurrent calls.
 
-## Qué Hace
+## What This Is Not
 
-- Mantiene una sesión web autenticada de ChatGPT.
-- Reutiliza cookies locales si existen.
-- Rechaza modo invitado/anónimo para evitar respuestas desde una sesión no autenticada.
-- Permite crear una cuenta una sola vez cuando no existe sesión autenticada.
-- Expone herramientas MCP separadas para chat normal, búsqueda web, razonamiento y Deep Research.
-- Ejecuta un solo browser job a la vez para no pisar una misma sesión web desde varias llamadas MCP concurrentes.
+- It is not an OpenAI API wrapper.
+- It does not use API keys.
+- It does not rotate accounts.
+- It does not create new accounts automatically when limits are reached.
+- It does not bypass plan limits.
+- It depends on the ChatGPT Web UI, so selectors can break if the web app changes.
 
-## Qué No Hace
+## MCP Tools
 
-- No usa API key.
-- No rota cuentas.
-- No crea cuentas automáticamente cuando se alcanza un límite.
-- No intenta saltar límites del plan.
-- No garantiza estabilidad si ChatGPT cambia selectores, textos o flujo visual de su web.
-- No expone generación de imágenes todavía, aunque la opción aparece en la UI.
-
-## Herramientas MCP
-
-| Herramienta | Uso | Modo UI |
+| Tool | Purpose | ChatGPT UI mode |
 | --- | --- | --- |
-| `chatgpt_status` | Detecta si la sesión actual está autenticada. | Ninguno |
-| `chatgpt_create_account` | Crea una cuenta persistente si no hay sesión autenticada. | Login web + Emailnator |
-| `chatgpt_ask` | Envía un prompt normal a ChatGPT. | Auto |
-| `chatgpt_search` | Envía un prompt con búsqueda web activada. | `Busca en la web` |
-| `chatgpt_reason` | Envía un prompt con razonamiento activado. | `Razonamiento` |
-| `chatgpt_deep_research` | Envía un prompt con investigación profunda activada. | `Investigar a fondo` |
+| `chatgpt_status` | Check whether the saved web session is authenticated. | None |
+| `chatgpt_create_account` | Create one persistent account when no authenticated session exists. | Login/signup flow |
+| `chatgpt_ask` | Send a normal prompt. | Auto |
+| `chatgpt_search` | Send a prompt with web search selected. | Search the web |
+| `chatgpt_reason` | Send a prompt with reasoning selected. | Reasoning |
+| `chatgpt_deep_research` | Send a prompt with Deep Research selected. | Deep Research |
 
-## Arquitectura
+## Architecture
 
 ```mermaid
 flowchart LR
-    Client["Cliente MCP<br/>Codex / Claude"] -->|"stdio"| MCP["chatgpt_ask.mcp<br/>FastMCP"]
-    MCP --> Executor["ThreadPoolExecutor<br/>max_workers=1"]
+    Client["MCP client"] -->|"stdio"| MCP["chatgpt_ask.mcp / FastMCP"]
+    MCP --> Executor["ThreadPoolExecutor / max_workers=1"]
     Executor --> Driver["ChatGPTDriver"]
     Driver --> Cookies[".chatgpt-cookies.json"]
     Driver --> Profile[".driver-chrome-profile"]
     Driver --> Browser["Patchright / Chrome"]
     Browser --> ChatGPT["https://chatgpt.com"]
-    Driver --> EmailProfile["Perfil Emailnator<br/>perplexity-ask"]
+    Driver --> EmailProfile["Optional Emailnator profile"]
     EmailProfile --> Emailnator["https://www.emailnator.com"]
 ```
 
-## Estructura Del Proyecto
+## Project Layout
 
 ```text
-D:\MCP\chatgpt-ask
-├── chatgpt_ask
-│   ├── __init__.py
-│   ├── driver.py      # Browser automation, login, cuenta, modos y extracción de respuesta
-│   └── mcp.py         # Servidor MCP y registro de herramientas
-├── examples
-│   └── login.py       # Ejemplo mínimo de login manual
-├── tests
-├── pyproject.toml     # Dependencias y scripts instalables
-├── README.md
-├── .chatgpt-cookies.json      # Sesión local, no se debe commitear
-└── .driver-chrome-profile     # Perfil local persistente, no se debe commitear
+chatgpt-ask/
+|-- chatgpt_ask/
+|   |-- __init__.py
+|   |-- driver.py      # Browser automation, login, account bootstrap, modes, response extraction
+|   `-- mcp.py         # MCP server and tool registration
+|-- examples/
+|   `-- login.py       # Minimal manual-login example
+|-- pyproject.toml
+|-- README.md
+|-- LICENSE
+|-- .gitignore
+`-- .mcp.example.json  # Example MCP config with placeholders
 ```
 
-## Instalación
+Local runtime files are intentionally ignored:
 
-PowerShell:
+- `.venv/`
+- `.chatgpt-cookies.json`
+- `.driver-chrome-profile/`
+- `.emailnator-chrome-profile/`
+- `.mcp.json`
+
+## Install
+
+From the repository root:
 
 ```powershell
-cd D:\MCP\chatgpt-ask
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -U pip
 .\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
 .\.venv\Scripts\patchright.exe install chromium
 ```
 
-Validar que los entrypoints existen:
+Verify entrypoints:
 
 ```powershell
 Test-Path .\.venv\Scripts\chatgpt-driver.exe
 Test-Path .\.venv\Scripts\chatgpt-mcp.exe
 ```
 
-## Variables De Entorno
+## Environment Variables
 
-| Variable | Valor usado | Descripción |
+| Variable | Default | Description |
 | --- | --- | --- |
-| `CHATGPT_PROFILE_DIR` | `D:\MCP\chatgpt-ask\.driver-chrome-profile` | Perfil persistente usado por ChatGPT. |
-| `CHATGPT_COOKIES_FILE` | `D:\MCP\chatgpt-ask\.chatgpt-cookies.json` | Archivo local donde se guardan cookies de ChatGPT. |
-| `CHATGPT_EMAILNATOR_PROFILE_DIR` | `D:\MCP\perplexity-ask\.driver-chrome-profile` | Perfil de navegador que ya pasa Emailnator. |
-| `CHATGPT_HEADLESS` | vacío / `1` | Si es `1`, `true` o `yes`, intenta ejecutar el navegador en headless. |
-| `CHATGPT_TIMEOUT_MS` | `120000` por defecto | Timeout base del driver. |
-| `MCP_TRANSPORT` | `stdio` por defecto | Transporte MCP. También acepta `http`. |
-| `MCP_HOST` | `127.0.0.1` | Host si se usa transporte HTTP. |
-| `MCP_PORT` | `8000` | Puerto si se usa transporte HTTP. |
+| `CHATGPT_PROFILE_DIR` | `./.driver-chrome-profile` | Persistent Chrome profile used for ChatGPT. |
+| `CHATGPT_COOKIES_FILE` | `./.chatgpt-cookies.json` | Local file where ChatGPT cookies are saved. |
+| `CHATGPT_EMAILNATOR_PROFILE_DIR` | `../perplexity-ask/.driver-chrome-profile`, then `./.emailnator-chrome-profile` | Optional profile used for Emailnator during account bootstrap. |
+| `CHATGPT_HEADLESS` | unset | Set to `1`, `true`, or `yes` to try running the browser headless. |
+| `CHATGPT_TIMEOUT_MS` | `120000` | Base timeout for driver operations. |
+| `MCP_TRANSPORT` | `stdio` | Only `stdio` is supported. HTTP transport is intentionally disabled. |
 
-## Login Manual
+## Manual Login
 
-Usar esto si quieres iniciar sesión con una cuenta existente.
+Use this when you want to authenticate with an existing ChatGPT account:
 
 ```powershell
-cd D:\MCP\chatgpt-ask
 .\.venv\Scripts\chatgpt-driver.exe --login
 ```
 
-El navegador abre `https://chatgpt.com/`. Completa el login manualmente. Al terminar, el driver guarda cookies en:
+Complete login in the opened browser. The driver saves cookies to the configured `CHATGPT_COOKIES_FILE`, or to `./.chatgpt-cookies.json` by default.
 
-```text
-D:\MCP\chatgpt-ask\.chatgpt-cookies.json
-```
-
-Comprobar sesión:
+Check the session:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --status
 ```
 
-Respuesta esperada cuando está bien:
+Expected authenticated shape:
 
 ```json
 {
@@ -139,146 +129,131 @@ Respuesta esperada cuando está bien:
 }
 ```
 
-## Bootstrap De Cuenta Única
+## One-Time Account Bootstrap
 
-Usar esto solo si no hay una sesión autenticada.
+Use this only when no authenticated ChatGPT session exists:
 
 ```powershell
-cd D:\MCP\chatgpt-ask
-$env:CHATGPT_EMAILNATOR_PROFILE_DIR = "D:\MCP\perplexity-ask\.driver-chrome-profile"
+$env:CHATGPT_EMAILNATOR_PROFILE_DIR = "<path-to-emailnator-browser-profile>"
 .\.venv\Scripts\chatgpt-driver.exe --create-account
 ```
 
-Flujo interno:
+Internal flow:
 
-1. Abre Emailnator con el perfil configurado.
-2. Genera un correo `googlemail`.
-3. Abre ChatGPT.
-4. Envía el correo al formulario de login/registro.
-5. Espera el correo de verificación.
-6. Extrae el código.
-7. Completa el flujo de verificación.
-8. Rellena pasos opcionales de perfil si aparecen.
-9. Cierra onboarding si aparece.
-10. Guarda cookies de ChatGPT.
+1. Opens Emailnator using the configured browser profile.
+2. Generates a `googlemail` address.
+3. Opens ChatGPT.
+4. Submits the email to ChatGPT login/signup.
+5. Waits for the verification email.
+6. Extracts the verification code.
+7. Completes verification.
+8. Completes optional profile steps if shown.
+9. Dismisses onboarding if shown.
+10. Saves ChatGPT cookies locally.
 
-Importante: esta acción crea una cuenta persistente y termina. No hay rotación ni creación automática posterior.
+This creates one persistent account and stops. It does not rotate accounts or create another account when ChatGPT later reports a limit.
 
-## Uso CLI
+## CLI Usage
 
-Chat normal:
+Normal chat:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --ask "Reply with exactly: ok"
 ```
 
-Búsqueda web:
+Web search:
 
 ```powershell
-.\.venv\Scripts\chatgpt-driver.exe --mode search --ask "Busca en la web y responde breve: estado actual de Python 3.13"
+.\.venv\Scripts\chatgpt-driver.exe --mode search --ask "Search the web and answer briefly: latest Python release"
 ```
 
-Razonamiento:
+Reasoning:
 
 ```powershell
-.\.venv\Scripts\chatgpt-driver.exe --mode reason --ask "Razona paso a paso y responde solo el resultado: 17 * 19"
+.\.venv\Scripts\chatgpt-driver.exe --mode reason --ask "Solve: 17 * 19"
 ```
 
 Deep Research:
 
 ```powershell
-.\.venv\Scripts\chatgpt-driver.exe --mode deep_research --ask "Investiga a fondo y resume las diferencias entre MCP stdio y HTTP"
+.\.venv\Scripts\chatgpt-driver.exe --mode deep_research --ask "Research MCP stdio versus HTTP and summarize"
 ```
 
-El modo Deep Research puede responder con un límite del plan si la cuenta actual ya consumió esa capacidad.
+Deep Research may return a visible plan-limit message when the current ChatGPT account has exhausted that quota.
 
-## Configuración En Codex
+## MCP Configuration
 
-Archivo:
+Use absolute paths in real MCP client configuration. Replace placeholders with your local checkout path.
 
-```text
-C:\Users\henry\.codex\config.toml
-```
-
-Bloque:
+### Codex `config.toml`
 
 ```toml
 [mcp_servers.chatgpt]
-command = 'D:\MCP\chatgpt-ask\.venv\Scripts\chatgpt-mcp.exe'
+command = '<repo-root>\.venv\Scripts\chatgpt-mcp.exe'
 enabled = true
 
 [mcp_servers.chatgpt.env]
-CHATGPT_COOKIES_FILE = 'D:\MCP\chatgpt-ask\.chatgpt-cookies.json'
-CHATGPT_PROFILE_DIR = 'D:\MCP\chatgpt-ask\.driver-chrome-profile'
-CHATGPT_EMAILNATOR_PROFILE_DIR = 'D:\MCP\perplexity-ask\.driver-chrome-profile'
+CHATGPT_COOKIES_FILE = '<repo-root>\.chatgpt-cookies.json'
+CHATGPT_PROFILE_DIR = '<repo-root>\.driver-chrome-profile'
+CHATGPT_EMAILNATOR_PROFILE_DIR = '<optional-emailnator-profile-dir>'
 ```
 
-Después de cambiar este archivo, reinicia Codex para que cargue el MCP nuevo.
-
-## Configuración En Claude
-
-Archivo global usado en este entorno:
-
-```text
-C:\Users\henry\.claude.json
-```
-
-Servidor MCP:
+### Claude `settings.json`
 
 ```json
 {
-  "chatgpt": {
-    "type": "stdio",
-    "command": "D:\\MCP\\chatgpt-ask\\.venv\\Scripts\\chatgpt-mcp.exe",
-    "args": [],
-    "env": {
-      "CHATGPT_COOKIES_FILE": "D:\\MCP\\chatgpt-ask\\.chatgpt-cookies.json",
-      "CHATGPT_PROFILE_DIR": "D:\\MCP\\chatgpt-ask\\.driver-chrome-profile",
-      "CHATGPT_EMAILNATOR_PROFILE_DIR": "D:\\MCP\\perplexity-ask\\.driver-chrome-profile"
+  "mcpServers": {
+    "chatgpt": {
+      "type": "stdio",
+      "command": "<repo-root>\\.venv\\Scripts\\chatgpt-mcp.exe",
+      "args": [],
+      "env": {
+        "CHATGPT_COOKIES_FILE": "<repo-root>\\.chatgpt-cookies.json",
+        "CHATGPT_PROFILE_DIR": "<repo-root>\\.driver-chrome-profile",
+        "CHATGPT_EMAILNATOR_PROFILE_DIR": "<optional-emailnator-profile-dir>"
+      }
     }
   }
 }
 ```
 
-Después de editar la config, reinicia Claude o recarga MCP según el cliente.
+The repository also includes `.mcp.example.json` as a template. Copy it to `.mcp.json` locally if your MCP client supports project-local MCP config files.
 
-## Flujo De Una Llamada MCP
+## MCP Call Flow
 
-1. El cliente llama una tool MCP.
-2. `chatgpt_ask/mcp.py` recibe la llamada por `stdio`.
-3. La llamada se mete en `ThreadPoolExecutor(max_workers=1)`.
-4. `ChatGPTDriver` abre el perfil persistente.
-5. Se cargan cookies desde `.chatgpt-cookies.json`.
-6. El driver abre `https://chatgpt.com/`.
-7. Verifica que no esté en modo invitado ni en pantalla de login.
-8. Selecciona la herramienta visual si el modo lo requiere.
-9. Escribe el prompt en el composer.
-10. Espera a que aparezca nueva respuesta.
-11. Extrae el texto visible más reciente.
-12. Devuelve el resultado por MCP.
+1. MCP client calls a tool.
+2. `chatgpt_ask/mcp.py` receives the request over `stdio`.
+3. A single-worker executor serializes browser operations.
+4. `ChatGPTDriver` opens the persistent browser profile.
+5. Cookies are loaded from the configured cookie file.
+6. The driver opens `https://chatgpt.com/`.
+7. It rejects guest or logged-out mode.
+8. It selects the requested ChatGPT UI mode if needed.
+9. It sends the prompt through the composer.
+10. It waits for a stable assistant response.
+11. It returns the latest visible assistant text.
 
-## Verificación
+## Verification
 
-Compilar módulos Python:
+Compile Python files:
 
 ```powershell
-cd D:\MCP\chatgpt-ask
 .\.venv\Scripts\python.exe -m compileall chatgpt_ask examples -q
 ```
 
-Ver estado:
+Check session:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --status
 ```
 
-Probar llamada normal:
+Test one prompt:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --ask "Reply with exactly: account-ok"
 ```
 
-Probar modos:
+Test modes:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --mode search --ask "Reply with exactly: search-ok"
@@ -286,15 +261,13 @@ Probar modos:
 .\.venv\Scripts\chatgpt-driver.exe --mode deep_research --ask "Reply with exactly: deep-ok"
 ```
 
-Deep Research puede devolver un mensaje de límite del plan Free en vez de `deep-ok`.
-
 ## Troubleshooting
 
 ### `LOGIN_REQUIRED`
 
-El MCP detectó modo invitado, login visible o falta de cookie autenticada.
+The MCP detected guest mode, login UI, or no authenticated session cookie.
 
-Solución:
+Run:
 
 ```powershell
 .\.venv\Scripts\chatgpt-driver.exe --login
@@ -303,124 +276,80 @@ Solución:
 
 ### `CHATGPT_WEB_ERROR`
 
-El driver llegó a ChatGPT pero falló un selector, timeout, envío o extracción.
+The driver reached ChatGPT but failed on selectors, timeout, send, or response extraction.
 
-Pasos:
+Run with a visible browser:
 
 ```powershell
 $env:CHATGPT_HEADLESS = ""
 .\.venv\Scripts\chatgpt-driver.exe --ask "Reply with exactly: debug-ok"
 ```
 
-Con navegador visible se puede ver si cambió la UI, si apareció onboarding o si la sesión expiró.
+### Deep Research Returns A Limit Message
 
-### Deep Research Devuelve Límite
+That is not necessarily an MCP failure. The tool selects Deep Research, but ChatGPT can block execution when the account quota is exhausted.
 
-Eso no es fallo del MCP si la UI de ChatGPT muestra el límite. La herramienta sí selecciona `Investigar a fondo`, pero el plan Free puede bloquear la ejecución hasta el reset de cuota.
+### Emailnator Fails
 
-### Emailnator Falla
-
-Verifica que `CHATGPT_EMAILNATOR_PROFILE_DIR` apunte al perfil que ya funciona:
+Set `CHATGPT_EMAILNATOR_PROFILE_DIR` to a browser profile that can already open Emailnator:
 
 ```powershell
-$env:CHATGPT_EMAILNATOR_PROFILE_DIR = "D:\MCP\perplexity-ask\.driver-chrome-profile"
+$env:CHATGPT_EMAILNATOR_PROFILE_DIR = "<path-to-emailnator-browser-profile>"
 .\.venv\Scripts\chatgpt-driver.exe --create-account
 ```
 
-Si Emailnator cambia su flujo o bloquea el perfil, el bootstrap puede fallar aunque el MCP normal siga funcionando con cookies existentes.
+### `chatgpt-mcp.exe` Is Locked During Reinstall
 
-### `chatgpt-mcp.exe` Bloqueado Al Reinstalar
-
-Si `pip install -e ".[mcp]"` falla porque el `.exe` está en uso, cierra Codex/Claude o mata el proceso MCP anterior.
-
-PowerShell:
+Close the MCP client or stop the old process:
 
 ```powershell
 Get-Process chatgpt-mcp -ErrorAction SilentlyContinue | Stop-Process -Force
 .\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
 ```
 
-### Mojibake En Consola
-
-Si PowerShell muestra caracteres raros en textos con acentos, cambia la consola a UTF-8:
-
-```powershell
-chcp 65001
-$OutputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
-```
-
-## Desarrollo
+## Development Notes
 
 Entrypoints:
 
-- `chatgpt_ask.driver:main` instala `chatgpt-driver`.
-- `chatgpt_ask.mcp:main` instala `chatgpt-mcp`.
+- `chatgpt_ask.driver:main` installs `chatgpt-driver`.
+- `chatgpt_ask.mcp:main` installs `chatgpt-mcp`.
 
-Funciones principales:
+Important functions:
 
-- `ChatGPTDriver.login()` abre ChatGPT para login manual y guarda cookies.
-- `ChatGPTDriver.create_account_once()` ejecuta el bootstrap con Emailnator.
-- `ChatGPTDriver.status()` detecta sesión autenticada.
-- `ChatGPTDriver.ask(prompt, mode="auto")` envía prompts desde la UI.
-- `ChatGPTDriver._select_mode()` traduce `search`, `reason` y `deep_research` a labels de la UI.
-- `ChatGPTDriver._latest_chat_result()` extrae la respuesta visible más reciente.
-- `chatgpt_ask.mcp.main()` registra tools MCP.
+- `ChatGPTDriver.login()` opens ChatGPT for manual login and saves cookies.
+- `ChatGPTDriver.create_account_once()` runs the optional Emailnator bootstrap.
+- `ChatGPTDriver.status()` detects authenticated state.
+- `ChatGPTDriver.ask(prompt, mode="auto")` sends prompts through the UI.
+- `ChatGPTDriver._select_mode()` maps `search`, `reason`, and `deep_research` to UI labels.
+- `ChatGPTDriver._latest_chat_result()` extracts the latest visible response.
+- `chatgpt_ask.mcp.main()` registers MCP tools.
 
-Para agregar una herramienta nueva:
+To add a new tool:
 
-1. Implementa el modo en `ChatGPTDriver._select_mode()` o una función dedicada.
-2. Agrega una función pública en `chatgpt_ask/mcp.py`.
-3. Registra la tool en `main()`.
-4. Reinstala en editable:
+1. Add a driver method or a mode in `ChatGPTDriver._select_mode()`.
+2. Add a public tool function in `chatgpt_ask/mcp.py`.
+3. Register it in `main()`.
+4. Reinstall editable package:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
 ```
 
-5. Reinicia el cliente MCP.
-6. Verifica con una llamada real.
+5. Restart the MCP client.
+6. Verify with a real call.
 
-## Archivos Sensibles
+## Security Notes
 
-No commitear:
+Do not commit:
 
 - `.chatgpt-cookies.json`
 - `.driver-chrome-profile/`
+- `.emailnator-chrome-profile/`
 - `.venv/`
-- `chatgpt_ask.egg-info/`
-- perfiles temporales `.inspect-*`
+- `.mcp.json`
 
-Estos archivos contienen sesión local, cache de navegador o artefactos de instalación.
+Cookie and profile files contain local session material. On shared machines, restrict filesystem permissions so only the current user, Administrators, and SYSTEM can read or modify them.
 
-## Limitaciones Técnicas
+## License
 
-- La integración depende de la UI web de ChatGPT, por lo tanto puede romperse con cambios visuales.
-- Las respuestas se extraen desde el DOM visible, no desde una API estable.
-- El modo Deep Research puede tardar más y además puede estar limitado por plan.
-- El driver está diseñado para una sesión local, no para concurrencia alta.
-- El MCP serializa llamadas con un solo worker para proteger el perfil persistente.
-- Generación de imágenes no está expuesta todavía porque requiere definir salida de archivo, descarga o extracción de asset.
-
-## Comandos De Referencia Rápida
-
-```powershell
-cd D:\MCP\chatgpt-ask
-
-# instalar
-.\.venv\Scripts\python.exe -m pip install -e ".[mcp]"
-.\.venv\Scripts\patchright.exe install chromium
-
-# sesión
-.\.venv\Scripts\chatgpt-driver.exe --status
-.\.venv\Scripts\chatgpt-driver.exe --login
-.\.venv\Scripts\chatgpt-driver.exe --create-account
-
-# prompts
-.\.venv\Scripts\chatgpt-driver.exe --ask "Reply with exactly: ok"
-.\.venv\Scripts\chatgpt-driver.exe --mode search --ask "Reply with exactly: search-ok"
-.\.venv\Scripts\chatgpt-driver.exe --mode reason --ask "Reply with exactly: reason-ok"
-.\.venv\Scripts\chatgpt-driver.exe --mode deep_research --ask "Reply with exactly: deep-ok"
-
-# verificar sintaxis
-.\.venv\Scripts\python.exe -m compileall chatgpt_ask examples -q
-```
+MIT. See [LICENSE](LICENSE).
