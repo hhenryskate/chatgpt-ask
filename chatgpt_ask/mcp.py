@@ -114,10 +114,6 @@ def main():
     mcp.tool()(chatgpt_status)
     mcp.tool()(chatgpt_create_account)
 
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport != "stdio":
-        sys.exit("ERROR: chatgpt MCP only supports stdio transport.")
-
     mcp.run()
 
 

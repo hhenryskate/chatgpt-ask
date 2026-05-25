@@ -2,11 +2,11 @@
   "mcpServers": {
     "chatgpt": {
       "type": "stdio",
-      "command": "<repo-root>\\.venv\\Scripts\\chatgpt-mcp.exe",
+      "command": "<repo-root>/.venv/Scripts/chatgpt-mcp.exe",
       "args": [],
       "env": {
-        "CHATGPT_COOKIES_FILE": "<repo-root>\\.chatgpt-cookies.json",
-        "CHATGPT_PROFILE_DIR": "<repo-root>\\.driver-chrome-profile",
+        "CHATGPT_COOKIES_FILE": "<repo-root>/.chatgpt-cookies.json",
+        "CHATGPT_PROFILE_DIR": "<repo-root>/.driver-chrome-profile",
         "CHATGPT_EMAILNATOR_PROFILE_DIR": "<optional-emailnator-profile-dir>"
       }
     }
